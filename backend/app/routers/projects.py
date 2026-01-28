@@ -1,13 +1,16 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.models import Project
+from app.models.project import Project
 from app.schemas.project import ProjectOut
 
-router = APIRouter()
+router = APIRouter(prefix="/projects", tags=["projects"])
 
-@router.get("/projects", response_model=list[ProjectOut])
+
+@router.get("", response_model=list[ProjectOut])
 def list_projects(db: Session = Depends(get_db)):
-    return db.scalars(select(Project)).all()
+    stmt = select(Project).order_by(Project.created_at.desc())
+    projects = db.scalars(stmt).all()
+    return projects
