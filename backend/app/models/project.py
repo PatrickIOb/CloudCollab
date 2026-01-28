@@ -26,6 +26,8 @@ class Project(TimestampMixin, Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     category: Mapped[str] = mapped_column(Text, nullable=False)
+    sub_category: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     status: Mapped[str] = mapped_column(Text, nullable=False, default=ProjectStatus.DRAFT.value)
     visibility: Mapped[str] = mapped_column(Text, nullable=False, default=ProjectVisibility.PRIVATE.value)
 
