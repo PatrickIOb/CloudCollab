@@ -50,3 +50,15 @@ class PrimaryFocus(str, Enum):
     ELECTRONIC = "ELECTRONIC"
     HYBRID = "HYBRID"
 
+
+class ProjectMemberRole(str, Enum):
+    COMPOSER = "COMPOSER"
+    FILMMAKER = "FILMMAKER"
+    EDITOR = "EDITOR"
+    VIEWER = "VIEWER"
+
+
+class ProjectMemberStatus(str, Enum):
+    INVITED = "INVITED"
+    ACTIVE = "ACTIVE"
+    REMOVED = "REMOVED"

@@ -4,7 +4,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -16,7 +16,7 @@ from app.models.enums import ProjectVisibility, ProjectStatus
 from app.models.composer_profile import ComposerProfile
 from app.models.filmmaker_profile import FilmmakerProfile
 
-from app.schemas.user import UserPublicProfileOut, UserMeOut, UserMeUpdate
+from app.schemas.user import UserPublicProfileOut, UserMeOut, UserMeUpdate, UserSearchOut
 from app.schemas.project import ProjectOut
 
 
@@ -69,6 +69,31 @@ def fetch_portfolio_projects(db: Session, owner_id: UUID, limit: int, offset: in
         .offset(offset)
     )
     return db.scalars(stmt).all()
+
+# ---------- SEARCH (username) ----------
+
+@router.get("", response_model=list[UserSearchOut])
+# Search users by username or display_name (public).
+
+def search_users(
+    db: Session = Depends(get_db),
+    q: str | None = Query(default=None),
+    limit: int = Query(default=20, ge=1, le=50),
+    offset: int = Query(default=0, ge=0),
+):
+    stmt = select(User)
+
+    if q:
+        stmt = stmt.where(
+            or_(
+                User.username.ilike(f"%{q}%"),
+                User.display_name.ilike(f"%{q}%"),
+            )
+        )
+
+    stmt = stmt.order_by(User.created_at.desc()).limit(limit).offset(offset)
+    return db.scalars(stmt).all()
+
 
 
 # ---------- PUBLIC (username) ----------

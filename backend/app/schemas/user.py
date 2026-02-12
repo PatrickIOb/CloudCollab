@@ -153,3 +153,15 @@ class UserMeUpdate(BaseModel):
             AnyUrl(val)
 
         return v
+
+
+class UserSearchOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    username: str
+    display_name: str
+    avatar_url: str | None = None
+    role: UserRole | None = None
+    availability_status: AvailabilityStatus | None = None
+

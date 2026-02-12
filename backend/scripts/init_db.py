@@ -1,4 +1,4 @@
-from app.database import engine
+"""from app.database import engine
 from app.models import Base
 import app.models
 
@@ -9,3 +9,4 @@ def init_db() -> None:
 
 if __name__ == "__main__":
     init_db()
+"""

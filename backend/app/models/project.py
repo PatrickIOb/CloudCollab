@@ -47,9 +47,15 @@ class Project(TimestampMixin, Base):
     )
     comments: Mapped[list["Comment"]] = relationship(back_populates="project", cascade="all, delete-orphan")
 
-    active_media_version: Mapped["MediaVersion | None"] = relationship(
-        foreign_keys=[active_media_version_id],
-        post_update=True,
+    active_media_version_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "media_versions.id",
+            ondelete="SET NULL",
+            use_alter=True, 
+            name="fk_projects_active_media_version_id",  
+        ),
+        nullable=True,
     )
 
     __table_args__ = (
