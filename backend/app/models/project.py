@@ -53,7 +53,7 @@ class Project(TimestampMixin, Base):
     )
 
     __table_args__ = (
-        CheckConstraint("category IN ('NARRATIVE_FILM','ACTION_SPORTS','EXPERIMENTAL')", name="ck_projects_category"),
+        CheckConstraint("category IN ('NARRATIVE_FILM','EXPERIMENTAL','ACTION_SPORTS','MOTION_GRAPHICS','REELS')", name="ck_projects_category"),
         CheckConstraint("status IN ('DRAFT','ACTIVE','COMPLETED')", name="ck_projects_status"),
         CheckConstraint("visibility IN ('PRIVATE','UNLISTED','PUBLIC')", name="ck_projects_visibility"),
     )

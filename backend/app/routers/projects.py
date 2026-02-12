@@ -43,6 +43,7 @@ def list_projects(
     db: Session = Depends(get_db),
 
     # Suche/Filter:
+    username: str | None = Query(default=None),
     q: str | None = Query(default=None, min_length=1),
     category: ProjectCategory | None = None,
     status: ProjectStatus | None = None,
@@ -52,6 +53,10 @@ def list_projects(
     offset: int = Query(default=0, ge=0),
 ):
     stmt = select(Project).where(Project.visibility == ProjectVisibility.PUBLIC.value)
+
+    if username:
+        stmt = stmt.join(User, User.id == Project.owner_id).where(User.username == username)
+
 
     # Textsuche: title ODER description
     if q:

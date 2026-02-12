@@ -15,12 +15,6 @@ class ProjectVisibility(str, Enum):
     PUBLIC = "PUBLIC"
 
 
-class ProjectCategory(str, Enum):
-    NARRATIVE_FILM = "NARRATIVE_FILM"
-    ACTION_SPORTS = "ACTION_SPORTS"
-    EXPERIMENTAL = "EXPERIMENTAL"
-
-
 class MemberRole(str, Enum):
     OWNER = "OWNER"
     CONTRIBUTOR = "CONTRIBUTOR"
@@ -31,7 +25,28 @@ class MediaType(str, Enum):
     AUDIO = "AUDIO"
 
 
+class ProjectCategory(str, Enum):
+    NARRATIVE_FILM = "NARRATIVE_FILM"
+    EXPERIMENTAL = "EXPERIMENTAL"
+    ACTION_SPORTS = "ACTION_SPORTS"
+    MOTION_GRAPHICS = "MOTION_GRAPHICS"
+    REELS = "REELS" 
+
+
 class AvailabilityStatus(str, Enum):
     AVAILABLE = "AVAILABLE"
     LIMITED = "LIMITED"
-    UNAVAILABLE = "UNAVAILABLE"
+    BUSY = "BUSY"
+
+
+class UserRole(str, Enum):
+    FILMMAKER = "FILMMAKER"
+    COMPOSER = "COMPOSER"
+    BOTH = "BOTH"
+
+
+class PrimaryFocus(str, Enum):
+    INSTRUMENTAL = "INSTRUMENTAL"
+    ELECTRONIC = "ELECTRONIC"
+    HYBRID = "HYBRID"
+
