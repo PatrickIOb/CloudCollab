@@ -54,11 +54,17 @@ class PrimaryFocus(str, Enum):
 class ProjectMemberRole(str, Enum):
     COMPOSER = "COMPOSER"
     FILMMAKER = "FILMMAKER"
-    EDITOR = "EDITOR"
-    VIEWER = "VIEWER"
+    CONTRIBUTOR = "CONTRIBUTOR"
 
 
 class ProjectMemberStatus(str, Enum):
     INVITED = "INVITED"
     ACTIVE = "ACTIVE"
     REMOVED = "REMOVED"
+
+
+class ApplicationStatus(str, Enum):
+    PENDING = "PENDING"
+    ACCEPTED = "ACCEPTED"
+    REJECTED = "REJECTED"
+    WITHDRAWN = "WITHDRAWN"

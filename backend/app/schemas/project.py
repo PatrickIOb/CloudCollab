@@ -4,6 +4,8 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.enums import ProjectCategory, ProjectStatus, ProjectVisibility
+from app.schemas.common import UserSummaryOut
+
 
 
 class ProjectCreate(BaseModel):
@@ -34,6 +36,9 @@ class ProjectOut(BaseModel):
 
     id: UUID
     owner_id: UUID
+
+    owner: UserSummaryOut | None = None  # Optionales Feld für die Ausgabe, damit wir den Ownernamen in der Projektliste haben
+
     title: str = Field(..., min_length=3, max_length=120)
     description: str | None = Field(default=None, max_length=5000)
 

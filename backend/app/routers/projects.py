@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.security import HTTPBearer
 from sqlalchemy import select, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
 from app.models.project import Project
@@ -11,6 +11,7 @@ from app.models.user import User
 from app.schemas.project import ProjectOut, ProjectCreate, ProjectUpdate
 from app.auth.dependencies import get_current_user, get_current_user_optional
 from app.models.enums import ProjectVisibility, ProjectCategory, ProjectStatus
+from app.auth.permissions import is_invited_member, is_active_member
 
 # Optional Bearer-Scheme nur für Swagger/OpenAPI,
 # damit Swagger den Authorization Header auch bei public routes mitsendet.
@@ -52,10 +53,17 @@ def list_projects(
     limit: int = Query(default=20, ge=1, le=50),
     offset: int = Query(default=0, ge=0),
 ):
-    stmt = select(Project).where(Project.visibility == ProjectVisibility.PUBLIC.value)
+    stmt = (
+        select(Project)
+        .where(Project.visibility == ProjectVisibility.PUBLIC.value)
+        .options(joinedload(Project.owner))
+    )
 
     if username:
-        stmt = stmt.join(User, User.id == Project.owner_id).where(User.username == username)
+        user = db.scalar(select(User).where(User.username == username))
+        if not user:
+            return [] # Kein User mit dem username -> leere Ergebnisliste
+        stmt = stmt.where(Project.owner_id == user.id)
 
 
     # Textsuche: title ODER description
@@ -93,9 +101,17 @@ def list_my_projects(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    stmt = select(Project).where(Project.owner_id == current_user.id)
+    stmt = (
+        select(Project)
+        .where(Project.owner_id == current_user.id)
+        .options(joinedload(Project.owner))
+    )
     return db.scalars(stmt).all()
 
+
+
+from app.auth.permissions import is_active_member  # neu
+# optional: später nehmen wir ensure_can_view_project statt inline checks
 
 @router.get("/{project_id:uuid}", response_model=ProjectOut)
 # Projektdetails, öffentlich zugänglich
@@ -105,22 +121,44 @@ def get_project(
     _credentials = Depends(swagger_bearer_scheme),  # <-- NUR für Swagger Header
     current_user: User | None = Depends(get_current_user_optional),
 ):
+    project = db.scalar(
+        select(Project)
+        .where(Project.id == project_id)
+        .options(joinedload(Project.owner))
+    )
 
-
-    project = db.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-
 
     is_public = project.visibility == ProjectVisibility.PUBLIC.value
     is_owner = current_user is not None and project.owner_id == current_user.id
 
+    # active member check
+    is_active = (
+        current_user is not None
+        and is_active_member(db, project.id, current_user.id)
+    )
 
-    if not (is_public or is_owner):
-        # Public darf private Projekte nicht sehen
+    # invited member check (preview access for invited users, even before accepting the invite)
+    is_invited = (
+        current_user is not None
+        and is_invited_member(db, project.id, current_user.id)
+    )
+
+    # Publices Projects can be viewed by anyone
+    if is_public:
+        return project
+
+
+    # PRIVATE / UNLISTED Projects can only be viewed by owner or active members:
+    if current_user is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    if not (is_owner or is_active or is_invited):
         raise HTTPException(status_code=403, detail="Not allowed")
 
     return project
+
 
 
 @router.post("", response_model=ProjectOut, status_code=status.HTTP_201_CREATED)
