@@ -10,10 +10,13 @@ from app.auth.dependencies import get_current_user
 from app.models.user import User
 from app.models.project import Project
 from app.models.project_member import ProjectMember
-from app.models.enums import ProjectMemberStatus
+from app.models.enums import ProjectMemberStatus, NotificationType
 
 from app.schemas.project_member import ProjectMemberInvite, ProjectMemberListItemOut, ProjectMemberOut
 from app.auth.permissions import ensure_owner_or_active_member
+from app.services.notify import create_notification
+
+
 
 router = APIRouter(prefix="/projects", tags=["project-members"])
 
@@ -87,6 +90,25 @@ def invite_member(
         status=ProjectMemberStatus.INVITED.value,
     )
     db.add(member)
+
+    #Notify the user about the invite
+    create_notification(
+        db,
+        recipient_id=user.id,
+        actor_id=current_user.id,
+        project_id=project_id,
+        type=NotificationType.INVITE_RECEIVED.value,
+        payload={
+            "target": {
+                "project_id": str(project_id),
+                "project_title": project.title,
+            },
+            "meta": {
+                "member_role": data.role.value,
+            },
+        },
+    )
+
     db.commit()
     db.refresh(member)
     return member
@@ -100,6 +122,8 @@ def accept_invite(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    project = get_project_or_404(db, project_id)
+
     member = db.scalar(
         select(ProjectMember).where(
             ProjectMember.project_id == project_id,
@@ -110,6 +134,24 @@ def accept_invite(
         raise HTTPException(status_code=404, detail="Invite not found")
 
     member.status = ProjectMemberStatus.ACTIVE.value
+
+    # Notify the project owner about the accepted invite and load project for notification payload
+
+    create_notification(
+        db,
+        recipient_id=project.owner_id,
+        actor_id=current_user.id,
+        project_id=project_id,
+        type=NotificationType.INVITE_ACCEPTED.value,
+        payload={
+            "target": {
+                "project_id": str(project_id),
+                "project_title": project.title,
+            }
+        },
+    )
+
+
     db.commit()
     db.refresh(member)
     return member

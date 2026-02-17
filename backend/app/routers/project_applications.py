@@ -12,12 +12,15 @@ from app.models.user import User
 from app.models.project import Project
 from app.models.project_member import ProjectMember
 from app.models.project_application import ProjectApplication
+from app.services.notify import create_notification
+
 
 from app.models.enums import (
     ApplicationStatus,
     ProjectVisibility,
     ProjectMemberStatus,
     ProjectMemberRole,
+    NotificationType
 )
 
 from app.schemas.project_application import ProjectApplicationCreate, ProjectApplicationOut
@@ -86,6 +89,26 @@ def apply_to_project(
         message=data.message,
     )
     db.add(app)
+
+    # Notify owner about new application
+    create_notification(
+        db,
+        recipient_id=project.owner_id,
+        actor_id=current_user.id,
+        project_id=project_id,
+        type=NotificationType.APPLICATION_RECEIVED.value,
+        payload={
+            "target": {
+                "project_id": str(project_id),
+                "project_title": project.title,
+            },
+            "meta": {
+                "message": data.message,
+            },
+        },
+    )
+
+
     db.commit()
     db.refresh(app)
     return load_application_with_user_or_404(db, app.id)
@@ -173,6 +196,25 @@ def accept_application(
         db.add(member)
 
     app.status = ApplicationStatus.ACCEPTED.value
+
+    # Notify applicant about acceptance
+    create_notification(
+        db,
+        recipient_id=app.user_id,
+        actor_id=current_user.id,
+        project_id=project_id,
+        type=NotificationType.APPLICATION_ACCEPTED.value,
+        payload={
+            "target": {
+                "project_id": str(project_id),
+                "project_title": project.title,
+            },
+            "meta": {
+                "application_id": str(app.id),
+            },
+        },
+    )
+
     db.commit()
 
     # re-query with user for response
@@ -198,6 +240,26 @@ def reject_application(
         raise HTTPException(status_code=400, detail="Application is not pending")
 
     app.status = ApplicationStatus.REJECTED.value
+
+    # Notify applicant about rejection
+    create_notification(
+        db,
+        recipient_id=app.user_id,
+        actor_id=current_user.id,
+        project_id=project_id,
+        type=NotificationType.APPLICATION_REJECTED.value,
+        payload={
+            "target": {
+                "project_id": str(project_id),
+                "project_title": project.title,
+            },
+            "meta": {
+                "application_id": str(app.id),
+            },
+        },
+    )
+
+
     db.commit()
 
     return load_application_with_user_or_404(db, app.id)

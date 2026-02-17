@@ -18,6 +18,7 @@ from app.models.filmmaker_profile import FilmmakerProfile
 from app.models.enums import UserRole, PrimaryFocus
 from app.models.project_application import ProjectApplication
 from app.models.project_member import ProjectMember
+from app.models.notification import Notification
 
 
 __all__ = [
@@ -40,4 +41,6 @@ __all__ = [
     "FilmmakerProfile",
     "UserRole",
     "PrimaryFocus",
+    "ProjectApplication",
+    "Notification",
 ]
