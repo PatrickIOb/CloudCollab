@@ -77,3 +77,18 @@ class NotificationType(str, Enum):
     APPLICATION_RECEIVED = "APPLICATION_RECEIVED"
     APPLICATION_ACCEPTED = "APPLICATION_ACCEPTED"
     APPLICATION_REJECTED = "APPLICATION_REJECTED"
+
+    COMMENT_TIMELINE_CREATED = "COMMENT_TIMELINE_CREATED"
+    COMMENT_PUBLIC_CREATED = "COMMENT_PUBLIC_CREATED"
+    COMMENT_REPLY_CREATED = "COMMENT_REPLY_CREATED"
+
+
+class CommentType(str, Enum):
+    """
+    Two modes of comments:
+    - TIMELINE: collaboration notes attached to a timecode (SoundCloud-style)
+    - PUBLIC: public feedback for public + completed projects (YouTube-style)
+    """
+    TIMELINE = "TIMELINE"
+    PUBLIC = "PUBLIC"
+

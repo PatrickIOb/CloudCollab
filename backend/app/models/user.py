@@ -37,7 +37,12 @@ class User(TimestampMixin, Base):
     owned_projects: Mapped[list["Project"]] = relationship(back_populates="owner", cascade="all, delete-orphan")
     memberships: Mapped[list["ProjectMember"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     uploaded_media: Mapped[list["MediaVersion"]] = relationship(back_populates="uploader")
-    comments: Mapped[list["Comment"]] = relationship(back_populates="author")
+    
+    comments: Mapped[list["Comment"]] = relationship(
+    back_populates="author",
+    cascade="all, delete-orphan",
+)
+
 
     composer_profile: Mapped["ComposerProfile | None"] = relationship(
     back_populates="user",

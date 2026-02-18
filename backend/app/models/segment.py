@@ -31,7 +31,7 @@ class Segment(TimestampMixin, Base):
 
     project: Mapped["Project"] = relationship(back_populates="segments")
     media_versions: Mapped[list["MediaVersion"]] = relationship(back_populates="segment")
-    comments: Mapped[list["Comment"]] = relationship(back_populates="segment")
+    comments: Mapped[list["Comment"]] = relationship(back_populates="segment", cascade="all, delete-orphan")
 
     __table_args__ = (
         CheckConstraint("start_seconds IS NULL OR start_seconds >= 0", name="ck_segments_start_seconds"),

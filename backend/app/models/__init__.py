@@ -19,6 +19,7 @@ from app.models.enums import UserRole, PrimaryFocus
 from app.models.project_application import ProjectApplication
 from app.models.project_member import ProjectMember
 from app.models.notification import Notification
+from app.models.comment import Comment
 
 
 __all__ = [
@@ -43,4 +44,5 @@ __all__ = [
     "PrimaryFocus",
     "ProjectApplication",
     "Notification",
+    "Comment",
 ]

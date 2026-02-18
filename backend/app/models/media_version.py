@@ -51,7 +51,7 @@ class MediaVersion(TimestampMixin, Base):
     )
     segment: Mapped["Segment | None"] = relationship(back_populates="media_versions")
     uploader: Mapped["User"] = relationship(back_populates="uploaded_media")
-    comments: Mapped[list["Comment"]] = relationship(back_populates="media_version")
+    comments: Mapped[list["Comment"]] = relationship(back_populates="media_version", cascade="all, delete-orphan")
 
     __table_args__ = (
         CheckConstraint("media_type IN ('VIDEO','AUDIO')", name="ck_media_versions_media_type"),
