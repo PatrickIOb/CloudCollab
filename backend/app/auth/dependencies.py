@@ -1,5 +1,3 @@
-# app/auth/dependencies.py
-
 import uuid
 from jose import JWTError
 from fastapi import Depends, HTTPException, Request

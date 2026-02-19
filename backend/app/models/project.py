@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
 from app.models.enums import ProjectStatus, ProjectVisibility
+from app.models.music_cue import MusicCue
 
 
 class Project(TimestampMixin, Base):
@@ -37,16 +38,6 @@ class Project(TimestampMixin, Base):
         nullable=True,
     )
 
-    owner: Mapped["User"] = relationship(back_populates="owned_projects")
-    members: Mapped[list["ProjectMember"]] = relationship(back_populates="project", cascade="all, delete-orphan")
-    segments: Mapped[list["Segment"]] = relationship(back_populates="project", cascade="all, delete-orphan")
-    media_versions: Mapped[list["MediaVersion"]] = relationship(
-        back_populates="project",
-        cascade="all, delete-orphan",
-        foreign_keys="MediaVersion.project_id",
-    )
-    comments: Mapped[list["Comment"]] = relationship(back_populates="project", cascade="all, delete-orphan")
-
     active_media_version_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey(
@@ -57,6 +48,23 @@ class Project(TimestampMixin, Base):
         ),
         nullable=True,
     )
+
+    owner: Mapped["User"] = relationship(back_populates="owned_projects")
+    members: Mapped[list["ProjectMember"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    segments: Mapped[list["Segment"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    media_versions: Mapped[list["MediaVersion"]] = relationship(
+        back_populates="project",
+        cascade="all, delete-orphan",
+        foreign_keys="MediaVersion.project_id",
+    )
+    comments: Mapped[list["Comment"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+
+    music_cues: Mapped[list["MusicCue"]] = relationship(
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+
+
 
     __table_args__ = (
         CheckConstraint("category IN ('NARRATIVE_FILM','EXPERIMENTAL','ACTION_SPORTS','MOTION_GRAPHICS','REELS')", name="ck_projects_category"),

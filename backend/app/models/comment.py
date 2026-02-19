@@ -1,4 +1,3 @@
-# app/models/comment.py
 from __future__ import annotations
 
 import uuid
@@ -83,9 +82,20 @@ class Comment(TimestampMixin, Base):
     segment: Mapped["Segment | None"] = relationship(back_populates="comments")
     media_version: Mapped["MediaVersion | None"] = relationship(back_populates="comments")
     author: Mapped["User"] = relationship(back_populates="comments")
+    parent: Mapped["Comment | None"] = relationship(
+        "Comment",
+        foreign_keys=[parent_id],
+        remote_side=[id],
+        back_populates="replies",
+    )
 
-    parent: Mapped["Comment | None"] = relationship(remote_side=[id])
-    replies: Mapped[list["Comment"]] = relationship(cascade="all, delete-orphan")
+    replies: Mapped[list["Comment"]] = relationship(
+        "Comment",
+        foreign_keys=[parent_id],
+        back_populates="parent",
+        cascade="all, delete-orphan",
+    )
+
 
     __table_args__ = (
         CheckConstraint(

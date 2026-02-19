@@ -1,4 +1,3 @@
-# app/schemas/comment.py
 from __future__ import annotations
 
 from datetime import datetime
@@ -16,7 +15,7 @@ class CommentCreate(BaseModel):
     - comment_type controls the permission rules (TIMELINE vs PUBLIC).
     - timecode_seconds is optional and used for timeline markers.
     - parent_id allows replies / threads.
-    - media_version_id is optional for "feedback on v2" etc.
+    - media_version_id is optional; for TIMELINE/PUBLIC we will default it to the project's active VIDEO version if omitted.
     - segment_id is optional and reserved for later scene workflows.
     """
     comment_type: CommentType = CommentType.TIMELINE

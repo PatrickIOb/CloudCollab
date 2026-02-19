@@ -47,6 +47,8 @@ class ProjectOut(BaseModel):
     status: ProjectStatus
     visibility: ProjectVisibility
 
+    active_media_version_id: UUID | None = None 
+
     created_at: datetime
     updated_at: datetime
 

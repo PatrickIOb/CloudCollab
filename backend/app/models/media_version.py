@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, Text, UniqueConstraint
+from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -45,6 +45,13 @@ class MediaVersion(TimestampMixin, Base):
         index=True,
     )
 
+    cue_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("music_cues.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+
     project: Mapped["Project"] = relationship(
         back_populates="media_versions",
         foreign_keys=[project_id],
@@ -53,11 +60,43 @@ class MediaVersion(TimestampMixin, Base):
     uploader: Mapped["User"] = relationship(back_populates="uploaded_media")
     comments: Mapped[list["Comment"]] = relationship(back_populates="media_version", cascade="all, delete-orphan")
 
+
+
+    cue: Mapped["MusicCue | None"] = relationship(
+        back_populates="audio_versions",
+        foreign_keys=[cue_id],
+    )
+
+
     __table_args__ = (
         CheckConstraint("media_type IN ('VIDEO','AUDIO')", name="ck_media_versions_media_type"),
         CheckConstraint("version_number >= 1", name="ck_media_versions_version_number"),
         CheckConstraint("duration_seconds IS NULL OR duration_seconds >= 0", name="ck_media_versions_duration_seconds"),
-        UniqueConstraint("project_id", "segment_id", "media_type", "version_number", name="uq_media_versions_version"),
+
+        # helpful indexes for common queries
         Index("ix_media_versions_project_type", "project_id", "media_type"),
         Index("ix_media_versions_project_segment", "project_id", "segment_id"),
+
+        # Partial unique: VIDEO version numbers per project
+        Index(
+            "uq_media_versions_video_project_version",
+            "project_id",
+            "version_number",
+            unique=True,
+            postgresql_where=text(
+                "media_type = 'VIDEO' AND segment_id IS NULL AND cue_id IS NULL"
+            ),
+        ),
+
+        # Partial unique: AUDIO version numbers per cue
+        Index(
+            "uq_media_versions_audio_cue_version",
+            "cue_id",
+            "version_number",
+            unique=True,
+            postgresql_where=text(
+                "media_type = 'AUDIO' AND cue_id IS NOT NULL"
+            ),
+        ),
     )
+

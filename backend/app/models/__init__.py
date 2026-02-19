@@ -6,7 +6,15 @@ from app.models.enums import (
     ProjectCategory,
     ProjectStatus,
     ProjectVisibility,
+    UserRole,
+    PrimaryFocus,
+    ProjectMemberRole,
+    ProjectMemberStatus,
+    CommentType,
+    ApplicationStatus,
+    NotificationType,
 )
+
 from app.models.user import User
 from app.models.project import Project
 from app.models.project_member import ProjectMember
@@ -15,11 +23,11 @@ from app.models.media_version import MediaVersion
 from app.models.comment import Comment
 from app.models.composer_profile import ComposerProfile
 from app.models.filmmaker_profile import FilmmakerProfile
-from app.models.enums import UserRole, PrimaryFocus
 from app.models.project_application import ProjectApplication
 from app.models.project_member import ProjectMember
 from app.models.notification import Notification
 from app.models.comment import Comment
+from app.models.music_cue import MusicCue
 
 
 __all__ = [
@@ -45,4 +53,8 @@ __all__ = [
     "ProjectApplication",
     "Notification",
     "Comment",
+    "CommentType",
+    "ApplicationStatus",
+    "NotificationType",
+    "MusicCue",
 ]

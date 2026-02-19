@@ -1,9 +1,8 @@
-# app/routers/comments.py
 from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.security import HTTPBearer
 from sqlalchemy import select, or_
 from sqlalchemy.orm import Session, joinedload
@@ -12,6 +11,7 @@ from app.database import get_db
 from app.auth.dependencies import get_current_user, get_current_user_optional
 from app.models.user import User
 from app.models.project import Project
+from app.models.media_version import MediaVersion
 from app.models.comment import Comment
 from app.models.project_member import ProjectMember
 from app.models.enums import (
@@ -81,9 +81,33 @@ def ensure_public_comments_allowed(project: Project) -> None:
         raise HTTPException(status_code=404, detail="Project not found")
 
 
+def get_video_media_version_or_400(db: Session, project: Project, media_version_id: UUID | None) -> UUID:
+    """
+    Resolve the VIDEO media_version_id a comment should attach to.
+
+    Rules:
+    - If media_version_id is provided: it must exist, belong to the project and be a VIDEO version.
+    - If media_version_id is None: we default to project.active_media_version_id.
+    - If the project has no active VIDEO version, we raise 400 (client must upload/activate a video first).
+    """
+    target_id = media_version_id or project.active_media_version_id
+    if target_id is None:
+        raise HTTPException(status_code=400, detail="Project has no active video version")
+
+    mv = db.get(MediaVersion, target_id)
+    if not mv or mv.project_id != project.id:
+        raise HTTPException(status_code=400, detail="Invalid media_version_id for this project")
+
+    if mv.media_type != "VIDEO":
+        raise HTTPException(status_code=400, detail="Comments can only attach to VIDEO media versions")
+
+    return mv.id
+
+
 @router.get("/{project_id:uuid}/comments", response_model=list[CommentOut])
 def list_comments(
     project_id: UUID,
+    media_version_id: UUID | None = Query(default=None),
     comment_type: CommentType = Query(default=CommentType.PUBLIC),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
@@ -96,6 +120,10 @@ def list_comments(
 
     - PUBLIC comments: visible to everyone ONLY if project is PUBLIC + COMPLETED.
     - TIMELINE comments: visible only to owner + ACTIVE members.
+
+    Version scoping:
+    - TIMELINE + PUBLIC are scoped to a VIDEO media_version.
+    - If media_version_id is omitted, we default to the project's active VIDEO version.
     """
     project = get_project_or_404(db, project_id)
 
@@ -109,12 +137,30 @@ def list_comments(
         if not is_owner_or_active_member(db, project, current_user.id):
             raise HTTPException(status_code=403, detail="Not allowed")
 
+    # Default behavior:
+    # - TIMELINE and PUBLIC comments are scoped to a VIDEO media version.
+    # - If media_version_id is omitted, we default to the project's active VIDEO version.
+    conditions = [
+        Comment.project_id == project_id,
+        Comment.comment_type == comment_type.value,
+    ]
+
+    if comment_type in (CommentType.TIMELINE, CommentType.PUBLIC):
+        target_media_version_id = get_video_media_version_or_400(db, project, media_version_id)
+
+        # Backwards-compatible: older comments may have NULL media_version_id
+        # (created before media_versions existed). We still include them, but all new
+        # comments will be version-scoped by create_comment().
+        conditions.append(
+            or_(
+                Comment.media_version_id == target_media_version_id,
+                Comment.media_version_id.is_(None),
+            )
+        )
+
     stmt = (
         select(Comment)
-        .where(
-            Comment.project_id == project_id,
-            Comment.comment_type == comment_type.value,
-        )
+        .where(*conditions)
         .options(joinedload(Comment.author))
         .order_by(Comment.created_at.asc())
         .limit(limit)
@@ -140,6 +186,7 @@ def create_comment(
     Replies:
     - parent_id must belong to same project
     - reply must match the parent's comment_type
+    - TIMELINE/PUBLIC comments are always attached to a VIDEO media_version (defaults to project's active video)
     """
     project = get_project_or_404(db, project_id)
 
@@ -149,11 +196,25 @@ def create_comment(
             project.visibility == ProjectVisibility.PUBLIC.value
             and project.status == ProjectStatus.COMPLETED.value
         ):
-            raise HTTPException(status_code=403, detail="Public comments only allowed on public completed projects")
+            raise HTTPException(
+                status_code=403,
+                detail="Public comments only allowed on public completed projects",
+            )
     else:
         # Timeline comments are collaboration-only.
         if not is_owner_or_active_member(db, project, current_user.id):
             raise HTTPException(status_code=403, detail="Not allowed")
+
+    # Resolve the target VIDEO media version for this comment.
+    # - TIMELINE comments always belong to a specific VIDEO version (default: active video).
+    # - PUBLIC comments always belong to the active VIDEO version (the "final" version users see).
+    if data.comment_type == CommentType.TIMELINE:
+        target_media_version_id = get_video_media_version_or_400(db, project, data.media_version_id)
+    else:
+        # PUBLIC
+        target_media_version_id = get_video_media_version_or_400(db, project, None)
+        if data.media_version_id is not None and data.media_version_id != target_media_version_id:
+            raise HTTPException(status_code=400, detail="Public comments must target the active video version")
 
     # Validate parent/reply
     if data.parent_id is not None:
@@ -164,6 +225,12 @@ def create_comment(
         if parent.comment_type != data.comment_type.value:
             raise HTTPException(status_code=400, detail="Reply type must match parent comment type")
 
+        # Replies must stay within the same media version thread.
+        # Legacy parent comments might have NULL media_version_id (created before media_versions existed);
+        # we allow replying but the new reply will still be attached to the resolved target version.
+        if parent.media_version_id is not None and parent.media_version_id != target_media_version_id:
+            raise HTTPException(status_code=400, detail="Reply must target the same media_version_id as parent")
+
     comment = Comment(
         project_id=project_id,
         author_id=current_user.id,
@@ -171,7 +238,7 @@ def create_comment(
         body=data.body,
         timecode_seconds=data.timecode_seconds,
         parent_id=data.parent_id,
-        media_version_id=data.media_version_id,
+        media_version_id=target_media_version_id,
         segment_id=data.segment_id,
     )
 
@@ -179,7 +246,7 @@ def create_comment(
     db.commit()
     db.refresh(comment)
 
-# -------------------------
+    # -------------------------
     # Notifications
 
     payload = {
@@ -235,7 +302,6 @@ def create_comment(
 
     db.commit()
 
-
     # Reload author relation for UI-friendly response
     comment = db.scalar(
         select(Comment)
@@ -243,3 +309,37 @@ def create_comment(
         .options(joinedload(Comment.author))
     )
     return comment
+
+
+@router.delete("/{project_id:uuid}/comments/{comment_id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_comment(
+    project_id: UUID,
+    comment_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Delete a comment.
+
+    Permissions:
+    - The comment author can delete their own comment.
+    - The project owner can delete any comment on their project (moderation).
+
+    Notes:
+    - Replies/children are removed automatically by DB-level ON DELETE CASCADE on parent_id.
+    """
+    project = get_project_or_404(db, project_id)
+
+    comment = db.get(Comment, comment_id)
+    if not comment or comment.project_id != project_id:
+        raise HTTPException(status_code=404, detail="Comment not found")
+
+    is_author = comment.author_id == current_user.id
+    is_owner = project.owner_id == current_user.id
+
+    if not (is_author or is_owner):
+        raise HTTPException(status_code=403, detail="Not allowed")
+
+    db.delete(comment)
+    db.commit()
+    return
